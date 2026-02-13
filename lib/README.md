@@ -103,3 +103,13 @@ sudo flutter-font-fix -a desktop-security-center
 - Features: Fontconfig enabled
 - Built by: GitHub Actions
 
+
+## Flutter 3.41.1
+- Flutter Commit: 582a0e7c5581dc0ca5f7bfd8662bb8db6f59d536
+- Built on: 2026-02-13 21:04:55 UTC
+- Size: 33M
+- Platform: Linux ARM64
+- Build Type: Release
+- Features: Fontconfig enabled
+- Built by: GitHub Actions
+
