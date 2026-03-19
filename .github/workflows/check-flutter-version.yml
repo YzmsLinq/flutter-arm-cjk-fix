@@ -22,26 +22,89 @@ jobs:
     - name: Check Flutter latest engine version from source
       id: check
       run: |
+        set -euo pipefail
+        api_get() {
+          local url="$1"
+          local body_file="$2"
+          local header_file="$3"
+          curl -sSL --retry 3 --retry-delay 1 --connect-timeout 5 --max-time 20 \
+            -D "$header_file" \
+            -o "$body_file" \
+            -w "%{http_code}" \
+            -H "User-Agent: flutter-font-fix-ci" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "$url"
+        }
+
+        resolve_tag_commit() {
+          local tag="$1"
+          local body_file header_file http_code object_type object_sha
+          body_file=$(mktemp)
+          header_file=$(mktemp)
+
+          echo "获取 Flutter 提交 SHA (refs/tags/$tag)..."
+          http_code=$(api_get "https://api.github.com/repos/flutter/flutter/git/ref/tags/$tag" "$body_file" "$header_file")
+          echo "git/ref HTTP: $http_code"
+
+          if [[ "$http_code" != "200" ]]; then
+            echo "API 路径 git/ref 不可用，尝试 git/refs 备用路径..."
+            http_code=$(api_get "https://api.github.com/repos/flutter/flutter/git/refs/tags/$tag" "$body_file" "$header_file")
+            echo "git/refs HTTP: $http_code"
+          fi
+
+          if [[ "$http_code" != "200" ]]; then
+            echo "调试信息: API 响应头"
+            sed -n '1,20p' "$header_file"
+            echo "调试信息: API 响应体"
+            sed -n '1,40p' "$body_file"
+            rm -f "$body_file" "$header_file"
+            return 1
+          fi
+
+          object_type=$(jq -r '.object.type // empty' "$body_file")
+          object_sha=$(jq -r '.object.sha // empty' "$body_file")
+          echo "Tag object type: ${object_type:-unknown}"
+
+          if [[ -z "$object_sha" ]]; then
+            echo "调试信息: API 响应体缺少 object.sha"
+            sed -n '1,40p' "$body_file"
+            rm -f "$body_file" "$header_file"
+            return 1
+          fi
+
+          if [[ "$object_type" == "tag" ]]; then
+            local tag_body_file tag_header_file
+            tag_body_file=$(mktemp)
+            tag_header_file=$(mktemp)
+            http_code=$(api_get "https://api.github.com/repos/flutter/flutter/git/tags/$object_sha" "$tag_body_file" "$tag_header_file")
+            echo "git/tags HTTP: $http_code"
+            if [[ "$http_code" != "200" ]]; then
+              echo "调试信息: tag object 响应头"
+              sed -n '1,20p' "$tag_header_file"
+              echo "调试信息: tag object 响应体"
+              sed -n '1,40p' "$tag_body_file"
+              rm -f "$body_file" "$header_file" "$tag_body_file" "$tag_header_file"
+              return 1
+            fi
+            object_sha=$(jq -r '.object.sha // empty' "$tag_body_file")
+            rm -f "$tag_body_file" "$tag_header_file"
+          fi
+
+          rm -f "$body_file" "$header_file"
+          [[ -n "$object_sha" ]] || return 1
+          printf '%s\n' "$object_sha"
+        }
+
         echo "正在检查 Flutter Engine 最新版本（从 Git tags）..."
-        
-        # 方法1: 从 GitHub API 获取最新的 stable tag
-        echo "尝试从 GitHub API 获取最新 tag..."
-        LATEST_TAG=$(curl -sL https://api.github.com/repos/flutter/flutter/tags | \
-          jq -r '.[].name' | \
+
+        echo "从 Git 仓库直接获取最新 stable tag..."
+        LATEST_TAG=$(git ls-remote --tags --refs https://github.com/flutter/flutter.git | \
+          awk '{print $2}' | \
+          sed 's|refs/tags/||' | \
           grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | \
           sort -V | \
           tail -n1)
-        
-        if [ -z "$LATEST_TAG" ]; then
-          echo "❌ 无法从 API 获取 tag，尝试备用方法..."
-          # 方法2: 从 Git 仓库直接获取 tags（备用）
-          LATEST_TAG=$(git ls-remote --tags https://github.com/flutter/flutter.git | \
-            grep -o 'refs/tags/[0-9]*\.[0-9]*\.[0-9]*$' | \
-            sed 's|refs/tags/||' | \
-            sort -V | \
-            tail -n1)
-        fi
-        
+
         if [ -z "$LATEST_TAG" ]; then
           echo "❌ 无法获取 Flutter 版本"
           exit 1
@@ -50,14 +113,8 @@ jobs:
         echo "最新 Flutter 版本: $LATEST_TAG"
         FLUTTER_VERSION="$LATEST_TAG"
 
-        # 通过 GitHub API 获取该 Flutter 版本对应的提交 SHA（tag 指向的对象）
-        echo "获取 Flutter 提交 SHA (refs/tags/$LATEST_TAG)..."
-        FLUTTER_COMMIT_SHA=$(curl -s "https://api.github.com/repos/flutter/flutter/git/ref/tags/$LATEST_TAG" | jq -r '.object.sha')
-        if [ -z "$FLUTTER_COMMIT_SHA" ] || [ "$FLUTTER_COMMIT_SHA" = "null" ]; then
-          echo "API 路径 git/ref 可能不可用，尝试 git/refs 备用路径..."
-          FLUTTER_COMMIT_SHA=$(curl -s "https://api.github.com/repos/flutter/flutter/git/refs/tags/$LATEST_TAG" | jq -r '.object.sha')
-        fi
-        if [ -z "$FLUTTER_COMMIT_SHA" ] || [ "$FLUTTER_COMMIT_SHA" = "null" ]; then
+        FLUTTER_COMMIT_SHA=$(resolve_tag_commit "$LATEST_TAG") || true
+        if [ -z "${FLUTTER_COMMIT_SHA:-}" ] || [ "$FLUTTER_COMMIT_SHA" = "null" ]; then
           echo "❌ 无法获取 Flutter 提交 SHA"
           exit 1
         fi
@@ -99,11 +156,13 @@ jobs:
     
     - name: Collect all release engine hashes
       run: |
+        set -euo pipefail
         git ls-remote --tags --refs https://github.com/flutter/flutter.git 2>/dev/null | \
           awk '{print $2}' |  sed 's/refs\/tags\///' | \
           grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V -r | \
           while read tag; do
-              content=$(curl -s "https://raw.githubusercontent.com/flutter/flutter/$tag/bin/internal/engine.version")
+              content=$(curl -fsSL --retry 3 --retry-delay 1 --connect-timeout 5 --max-time 20 \
+                "https://raw.githubusercontent.com/flutter/flutter/$tag/bin/internal/engine.version")
               printf "%s | %s\n" "$content" "$tag"
           done > flutter.engine.hash.version
 
@@ -142,7 +201,6 @@ jobs:
             2. 点击 "Run workflow"
             3. 输入版本号: \`${{ steps.check.outputs.latest_version }}\`
             4. 点击 "Run workflow" 按钮
-            
-            或者使用自托管 Runner 触发 [build-flutter-engine-self-hosted.yml](https://github.com/${{ github.repository }}/actions/workflows/build-flutter-engine-self-hosted.yml)`,
+            `,
             labels: ['enhancement', 'auto-build']
           });

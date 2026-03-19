@@ -99,13 +99,80 @@ jobs:
     - name: Resolve Flutter revision
       id: resolve-rev
       run: |
+        set -euo pipefail
+        api_get() {
+          local url="$1"
+          local body_file="$2"
+          local header_file="$3"
+          curl -sSL --retry 3 --retry-delay 1 --connect-timeout 5 --max-time 20 \
+            -D "$header_file" \
+            -o "$body_file" \
+            -w "%{http_code}" \
+            -H "User-Agent: flutter-font-fix-ci" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "$url"
+        }
+
+        resolve_tag_commit() {
+          local tag="$1"
+          local body_file header_file http_code object_type object_sha
+          body_file=$(mktemp)
+          header_file=$(mktemp)
+
+          http_code=$(api_get "https://api.github.com/repos/flutter/flutter/git/ref/tags/$tag" "$body_file" "$header_file")
+          echo "git/ref HTTP: $http_code"
+          if [[ "$http_code" != "200" ]]; then
+            http_code=$(api_get "https://api.github.com/repos/flutter/flutter/git/refs/tags/$tag" "$body_file" "$header_file")
+            echo "git/refs HTTP: $http_code"
+          fi
+
+          if [[ "$http_code" != "200" ]]; then
+            echo "调试信息: API 响应头"
+            sed -n '1,20p' "$header_file"
+            echo "调试信息: API 响应体"
+            sed -n '1,40p' "$body_file"
+            rm -f "$body_file" "$header_file"
+            return 1
+          fi
+
+          object_type=$(jq -r '.object.type // empty' "$body_file")
+          object_sha=$(jq -r '.object.sha // empty' "$body_file")
+          echo "Tag object type: ${object_type:-unknown}"
+
+          if [[ -z "$object_sha" ]]; then
+            echo "调试信息: API 响应体缺少 object.sha"
+            sed -n '1,40p' "$body_file"
+            rm -f "$body_file" "$header_file"
+            return 1
+          fi
+
+          if [[ "$object_type" == "tag" ]]; then
+            local tag_body_file tag_header_file
+            tag_body_file=$(mktemp)
+            tag_header_file=$(mktemp)
+            http_code=$(api_get "https://api.github.com/repos/flutter/flutter/git/tags/$object_sha" "$tag_body_file" "$tag_header_file")
+            echo "git/tags HTTP: $http_code"
+            if [[ "$http_code" != "200" ]]; then
+              echo "调试信息: tag object 响应头"
+              sed -n '1,20p' "$tag_header_file"
+              echo "调试信息: tag object 响应体"
+              sed -n '1,40p' "$tag_body_file"
+              rm -f "$body_file" "$header_file" "$tag_body_file" "$tag_header_file"
+              return 1
+            fi
+            object_sha=$(jq -r '.object.sha // empty' "$tag_body_file")
+            rm -f "$tag_body_file" "$tag_header_file"
+          fi
+
+          rm -f "$body_file" "$header_file"
+          [[ -n "$object_sha" ]] || return 1
+          printf '%s\n' "$object_sha"
+        }
+
         REVISION="${{ steps.set-vars.outputs.flutter_commit }}"
         if [ -z "$REVISION" ] || [ "$REVISION" = "null" ]; then
           echo "根据版本解析 Flutter 提交..."
-          REVISION=$(curl -s "https://api.github.com/repos/flutter/flutter/git/ref/tags/${{ steps.set-vars.outputs.flutter_version }}" | jq -r '.object.sha')
-          if [ -z "$REVISION" ] || [ "$REVISION" = "null" ]; then
-            REVISION=$(curl -s "https://api.github.com/repos/flutter/flutter/git/refs/tags/${{ steps.set-vars.outputs.flutter_version }}" | jq -r '.object.sha')
-          fi
+          REVISION=$(resolve_tag_commit "${{ steps.set-vars.outputs.flutter_version }}") || true
         fi
         if [ -z "$REVISION" ] || [ "$REVISION" = "null" ]; then
           echo "❌ 无法解析 Flutter 提交"
