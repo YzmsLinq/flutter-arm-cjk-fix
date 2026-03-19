@@ -92,7 +92,7 @@ jobs:
 
           rm -f "$body_file" "$header_file"
           [[ -n "$object_sha" ]] || return 1
-          printf '%s\n' "$object_sha"
+          RESOLVED_TAG_COMMIT="$object_sha"
         }
 
         echo "正在检查 Flutter Engine 最新版本（从 Git tags）..."
@@ -113,8 +113,10 @@ jobs:
         echo "最新 Flutter 版本: $LATEST_TAG"
         FLUTTER_VERSION="$LATEST_TAG"
 
-        FLUTTER_COMMIT_SHA=$(resolve_tag_commit "$LATEST_TAG") || true
-        if [ -z "${FLUTTER_COMMIT_SHA:-}" ] || [ "$FLUTTER_COMMIT_SHA" = "null" ]; then
+        RESOLVED_TAG_COMMIT=""
+        resolve_tag_commit "$LATEST_TAG" || true
+        FLUTTER_COMMIT_SHA="${RESOLVED_TAG_COMMIT:-}"
+        if [ -z "$FLUTTER_COMMIT_SHA" ] || [ "$FLUTTER_COMMIT_SHA" = "null" ]; then
           echo "❌ 无法获取 Flutter 提交 SHA"
           exit 1
         fi
