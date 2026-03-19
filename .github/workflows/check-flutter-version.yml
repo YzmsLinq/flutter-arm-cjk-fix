@@ -42,32 +42,32 @@ jobs:
           body_file=$(mktemp)
           header_file=$(mktemp)
 
-          echo "获取 Flutter 提交 SHA (refs/tags/$tag)..."
+          echo "获取 Flutter 提交 SHA (refs/tags/$tag)..." >&2
           http_code=$(api_get "https://api.github.com/repos/flutter/flutter/git/ref/tags/$tag" "$body_file" "$header_file")
-          echo "git/ref HTTP: $http_code"
+          echo "git/ref HTTP: $http_code" >&2
 
           if [[ "$http_code" != "200" ]]; then
-            echo "API 路径 git/ref 不可用，尝试 git/refs 备用路径..."
+            echo "API 路径 git/ref 不可用，尝试 git/refs 备用路径..." >&2
             http_code=$(api_get "https://api.github.com/repos/flutter/flutter/git/refs/tags/$tag" "$body_file" "$header_file")
-            echo "git/refs HTTP: $http_code"
+            echo "git/refs HTTP: $http_code" >&2
           fi
 
           if [[ "$http_code" != "200" ]]; then
-            echo "调试信息: API 响应头"
-            sed -n '1,20p' "$header_file"
-            echo "调试信息: API 响应体"
-            sed -n '1,40p' "$body_file"
+            echo "调试信息: API 响应头" >&2
+            sed -n '1,20p' "$header_file" >&2
+            echo "调试信息: API 响应体" >&2
+            sed -n '1,40p' "$body_file" >&2
             rm -f "$body_file" "$header_file"
             return 1
           fi
 
           object_type=$(jq -r '.object.type // empty' "$body_file")
           object_sha=$(jq -r '.object.sha // empty' "$body_file")
-          echo "Tag object type: ${object_type:-unknown}"
+          echo "Tag object type: ${object_type:-unknown}" >&2
 
           if [[ -z "$object_sha" ]]; then
-            echo "调试信息: API 响应体缺少 object.sha"
-            sed -n '1,40p' "$body_file"
+            echo "调试信息: API 响应体缺少 object.sha" >&2
+            sed -n '1,40p' "$body_file" >&2
             rm -f "$body_file" "$header_file"
             return 1
           fi
@@ -77,12 +77,12 @@ jobs:
             tag_body_file=$(mktemp)
             tag_header_file=$(mktemp)
             http_code=$(api_get "https://api.github.com/repos/flutter/flutter/git/tags/$object_sha" "$tag_body_file" "$tag_header_file")
-            echo "git/tags HTTP: $http_code"
+            echo "git/tags HTTP: $http_code" >&2
             if [[ "$http_code" != "200" ]]; then
-              echo "调试信息: tag object 响应头"
-              sed -n '1,20p' "$tag_header_file"
-              echo "调试信息: tag object 响应体"
-              sed -n '1,40p' "$tag_body_file"
+              echo "调试信息: tag object 响应头" >&2
+              sed -n '1,20p' "$tag_header_file" >&2
+              echo "调试信息: tag object 响应体" >&2
+              sed -n '1,40p' "$tag_body_file" >&2
               rm -f "$body_file" "$header_file" "$tag_body_file" "$tag_header_file"
               return 1
             fi
