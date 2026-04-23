@@ -178,8 +178,10 @@ jobs:
           echo "❌ 无法解析 Flutter 提交"
           exit 1
         fi
-        echo "revision=$REVISION" >> $GITHUB_OUTPUT
-        echo "REVISION=$REVISION" >> $GITHUB_ENV
+        #echo "revision=$REVISION" >> $GITHUB_OUTPUT
+        #echo "REVISION=$REVISION" >> $GITHUB_ENV
+        echo "revision=3.24.3" >> $GITHUB_OUTPUT
+        echo "REVISION=3.24.3" >> $GITHUB_ENV
     
     - name: Clone Flutter Engine
       run: |
