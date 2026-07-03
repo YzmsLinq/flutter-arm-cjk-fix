@@ -173,3 +173,83 @@ sudo flutter-font-fix -a desktop-security-center
 - Features: Fontconfig enabled
 - Built by: GitHub Actions
 
+
+## Flutter 3.41.8
+- Flutter Commit: 02085feb3f5d8a8156e5e28512b9d99351d510c0
+- Built on: 2026-04-27 20:47:04 UTC
+- Size: 33M
+- Platform: Linux ARM64
+- Build Type: Release
+- Features: Fontconfig enabled
+- Built by: GitHub Actions
+
+
+## Flutter 3.41.9
+- Flutter Commit: 00b0c91f06209d9e4a41f71b7a512d6eb3b9c694
+- Built on: 2026-04-30 20:29:14 UTC
+- Size: 33M
+- Platform: Linux ARM64
+- Build Type: Release
+- Features: Fontconfig enabled
+- Built by: GitHub Actions
+
+
+## Flutter 3.38.10
+- Flutter Commit: c6f67dede3d4aa1aa7a69dd56a3494a5cde6cc80
+- Built on: 2026-05-02 03:35:41 UTC
+- Size: 32M
+- Platform: Linux ARM64
+- Build Type: Release
+- Features: Fontconfig enabled
+- Built by: GitHub Actions
+
+
+## Flutter 3.44.0
+- Flutter Commit: 559ffa3f75e7402d65a8def9c28389a9b2e6fe42
+- Built on: 2026-05-18 20:23:37 UTC
+- Size: 16M
+- Platform: Linux ARM64
+- Build Type: Release
+- Features: Fontconfig enabled
+- Built by: GitHub Actions
+
+
+## Flutter 3.44.1
+- Flutter Commit: 924134a44c189315be2148659913dda1671cbe99
+- Built on: 2026-06-01 21:34:41 UTC
+- Size: 16M
+- Platform: Linux ARM64
+- Build Type: Release
+- Features: Fontconfig enabled
+- Built by: GitHub Actions
+
+
+## Flutter 3.44.2
+- Flutter Commit: c9a6c484230f8b5e408ec57be1ef71dee1e77020
+- Built on: 2026-06-12 02:34:34 UTC
+- Size: 16M
+- Platform: Linux ARM64
+- Build Type: Release
+- Features: Fontconfig enabled
+- Built by: GitHub Actions
+
+
+## Flutter 3.44.3
+- Flutter Commit: e1fd963c6f6922bd32afde2e9698a363cd0406d2
+- Built on: 2026-06-22 20:57:44 UTC
+- Size: 16M
+- Platform: Linux ARM64
+- Build Type: Release
+- Features: Fontconfig enabled
+- Built by: GitHub Actions
+
+
+## Flutter 3.44.4
+- Flutter Commit: ad70ec4617166f1c38e5d2bfd388af71fda14f06
+- Built on: 2026-06-25 02:54:11 UTC
+- Size: 16M
+- Platform: Linux ARM64
+- Build Type: Release
+- Features: Fontconfig enabled
+- Built by: GitHub Actions
+
